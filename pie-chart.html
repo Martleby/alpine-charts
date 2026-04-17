@@ -17,19 +17,21 @@
 
     <div x-data="chart">
         
+        <div class="mb-30">
+            <button @click="drawChart">
+                Draw Chart
+            </button>
+
         
-        <button @click="drawChart">
-            Draw Chart
-        </button>
+            <input x-model="config.innerRadius" type="range" min="0" max="195" step="10">
 
-    
-        <input x-model="config.innerRadius" type="range" min="0" max="195" step="10">
+            <input x-model="config.outerRadius" type="range" min="200" max="500" step="10">
 
-        <input x-model="config.outerRadius" type="range" min="200" max="500" step="10">
+            <input x-model="config.explodeOffset" type="range" min="0" max="20" step="1">
+        </div>
 
-        <input x-model="config.explodeOffset" type="range" min="0" max="20" step="1">
-        
         <canvas class="bg-white" @click="handleClick" class="border" x-ref="canvas">
+        
 
 
         </canvas>
@@ -140,7 +142,11 @@
             },
 
             degreesToRads(degrees){
-                return (degrees) * Math.PI / 180;
+                return degrees * Math.PI / 180
+            },
+
+            radiansToDegrees(radians){
+                return radians * (180 / Math.PI)
             },
 
             generateShades(baseColor, count) {
@@ -279,8 +285,8 @@
 
 
                     this.labels.push({
-                        lx: cx + Math.cos(this.degreesToRads(labelMid)) * labelRadius,
-                        ly: cy + Math.sin(this.degreesToRads(labelMid)) * labelRadius
+                        lx: cx + dx + Math.cos(this.degreesToRads(labelMid)) * labelRadius,
+                        ly: cy + dx + Math.sin(this.degreesToRads(labelMid)) * labelRadius
                     })
 
                     this.sliceMeta.push({
@@ -306,7 +312,7 @@
                 this.labels.forEach((label, index) => {
 
                     const minDim = Math.min(this.config.width, this.config.height)
-                    const fontPx = (minDim * 0.04)   // 4% of canvas size
+                    const fontPx = (minDim * 0.02)   // 4% of canvas size
 
                     this.ctx.fillStyle = "#FFF"
                     this.ctx.font = fontPx + "px sans-serif"
