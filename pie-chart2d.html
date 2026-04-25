@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/resize@3.x.x/dist/cdn.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <title>Pie Chart 2D</title>
+</head>
+<body>
+
+
+    <div x-data="chart" class="flex gap-x-2">
+        <canvas class="bg-gray-100" @click="handleClick" @mousemove="handleHover" x-ref="canvas">
+
+        </canvas>
+
+        <div class="flex flex-col gap-y-2">
+            <div class="flex flex-col">
+                <label for="">
+                    Outer Radius
+                </label>
+                <div class="flex gap-x-2">
+                    <input class="w-full" x-model.number="outerRadius" type="range" min="0" max="10">
+                    <input class="w-12" x-model.number="outerRadius" type="text">
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <label for="">
+                    Inner Radius
+                </label>
+                <div class="flex gap-x-2">
+                    <input class="w-full" x-model.number="innerRadius" type="range" min="0" max="10">
+                    <input class="w-12" x-model.number="innerRadius" type="text">
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <label for="">
+                    Rotation Offset
+                </label>
+                <div class="flex gap-x-2">
+                    <input class="w-full mr-auto" x-model.number="rotationOffset" type="range" min="-180" max="180" step="1">
+                    <input class="w-12" x-model.number="rotationOffset" type="text">
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <label for="">
+                    Label Offset
+                </label>
+                <div class="flex gap-x-2">
+                    <input class="w-full" x-model.number="labelOffset" type="range" min="-10" max="10">
+                    <input class="w-12" x-model.number="labelOffset" type="text">
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <label for="">
+                    Gap Size
+                </label>
+                <div class="flex gap-x-2">
+                    <input class="w-full" x-model.number="gapSize" type="range" min="0" max="10">
+                    <input class="w-12" x-model.number="gapSize" type="text">
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <label for="">
+                    Scale Factor
+                </label>
+                <div class="flex gap-x-2">
+                    <input class="w-full mr-auto" x-model.number="scaleFactor" type="range" min="0" :max="maxScaleFactor">
+                    <input class="w-12" x-model.number="scaleFactor" type="text">
+                </div>
+            </div>
+            <div>
+                <button @click="setupData();drawChart()">Draw</button>
+            </div>
+        </div>
+
+        <div x-effect="setupData(maxScaleFactor)">
+
+        </div>
+
+    </div>
+    
+    
+    
+    
+    <script>
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('chart', () => ({
+
+                canvas: null,
+                ctx: null,
+                paths: [],
+                data: [
+                    {label: 'Lego', value: 36, color: 'green', path: null},
+                    {label: 'Planes', value: 21, color: 'red', path: null},
+                    {label: 'Wood Kits', value: 45, color: 'blue', path: null},
+                    {label: 'Models', value: 65, color: 'limegreen', path: null},
+                    {label: 'Soft Toys', value: 55, color: 'orange', path: null},
+                    {label: 'Kites', value: 26, color: 'indigo', path: null},
+
+                ],
+                outerRadius: 8,
+                innerRadius: 4,
+                rotationOffset: -90,
+                labelOffset: -2,
+                gapSize: 3,
+                minScaleFactor: 0,
+                maxScaleFactor: 400,
+                scaleFactor: 62,
+                selectedIndex: null,
+
+                drawChart(){
+
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+
+                    this.data.forEach((p, index) => {
+
+
+                        const m = new DOMMatrix()
+                            .translate(this.canvas.width / 2, this.canvas.height /2)
+                            .rotate(this.rotationOffset)
+                            .scale(this.scaleFactor + (index == this.selectedIndex ? 5 : 0))
+                        
+                        p.matrix = m
+
+                        this.ctx.strokeStyle = 'white';
+                        this.ctx.fillStyle = p.color
+                        this.ctx.lineWidth = 0.2;
+
+                        this.ctx.setTransform(p.matrix)
+                        //this.ctx.stroke(p)
+                        this.ctx.fill(p.path)
+
+                        this.ctx.save()
+                        this.ctx.font = "0.5px sans-serif";
+                        this.ctx.fillStyle = 'black';
+                        this.ctx.textAlign = "center"
+                        this.ctx.textBaseline = "middle"
+
+                        let midSlice = p.end - ((p.end - p.start)/2)
+
+                        this.ctx.rotate(midSlice)
+                        this.ctx.translate(this.outerRadius + this.labelOffset, 0)
+                        //Undo the slice rotation and the global rotation so text is upright
+                        this.ctx.rotate(-(midSlice + (this.rotationOffset * Math.PI / 180)))
+                        
+                        // this.ctx.fillRect(
+                        //     -(this.ctx.measureText(p.label).width  / 2), 
+                        //     -(this.ctx.measureText(p.label).actualBoundingBoxAscent), 
+                        //     this.ctx.measureText(p.label).width, 
+                        //     this.ctx.measureText(p.label).actualBoundingBoxDescent + this.ctx.measureText(p.label).actualBoundingBoxAscent 
+                        // )
+                        this.ctx.fillStyle = 'white'
+                        //this.ctx.strokeText(p.label, 0, 0)
+                        this.ctx.fillText(p.label, 0, 0)
+                        
+                        this.ctx.restore()
+
+
+
+                    })
+
+                    this.ctx.resetTransform()
+
+
+                },
+
+                handleClick(e){
+
+                    let index = this.hitDetection(e)
+
+                    this.selectedIndex = index === this.selectedIndex ? null : index
+                        
+                    this.drawChart()
+
+                },
+
+                handleHover(e){
+
+                    let slice = this.hitDetection(e)
+                    if(slice){
+                        
+                    }
+
+                },
+
+                hitDetection(e){
+
+                    let rect = this.canvas.getBoundingClientRect()
+                    const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+                    const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+                    
+                    let found = null
+                    
+                    this.data.forEach((p, index) => {
+
+                        this.ctx.setTransform(p.matrix)
+
+                        if(this.ctx.isPointInPath(p.path, mx, my)){
+                            this.ctx.resetTransform()
+                            found = index
+                            return
+                        }
+                    })
+
+                    this.ctx.resetTransform()
+                    return found
+
+                },
+
+                setupCanvas(){
+
+                    const dpr = window.devicePixelRatio || 1
+
+                    // 1. Set CSS size (visual)
+                    this.ctx.canvas.style.width = 800 + "px"
+                    this.ctx.canvas.style.height = 800 + "px"
+
+                    // 2. Set internal bitmap size (scaled)
+                    this.ctx.canvas.width = 800 * dpr
+                    this.ctx.canvas.height = 800 * dpr
+
+                    // 3. Scale drawing operations
+                    this.ctx.scale(dpr, dpr)
+
+                },
+
+                setupData() {
+
+                    let total = Math.sumPrecise(this.data.map(item => item.value))
+                    let currentRotation = 0
+
+                    this.data.forEach(item => {
+
+                        let start = (currentRotation + this.gapSize) * Math.PI / 180
+                        let proportion = item.value / total * 360
+                        let end = (currentRotation + proportion - this.gapSize) * Math.PI / 180
+
+                        let cpath = new Path2D
+                        cpath.moveTo(0, 0)
+                        cpath.arc(0, 0, this.outerRadius, start, end)
+                        cpath.arc(0, 0, this.innerRadius, end, start, true)
+                        cpath.closePath()
+
+                        item.path = cpath
+                        item.start = start
+                        item.end = end
+                        item.proportion = proportion
+
+                        currentRotation += proportion
+
+                    })
+
+                    this.drawChart()
+                    
+                },
+
+                init(){
+
+                    this.canvas = this.$refs.canvas
+                    this.ctx = this.canvas.getContext('2d')
+                    this.setupCanvas()
+                    this.setupData()
+                    //this.drawChart()
+
+                }
+            
+            }))
+        })
+    
+    </script>
+    
+</body>
+</html>

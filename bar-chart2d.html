@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/resize@3.x.x/dist/cdn.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <title>Bar Chart 2D</title>
+</head>
+<body>
+
+    <div x-data="chart" class="relative max-w-fit">
+
+        <canvas @mousemove="handleHover" class="bg-zinc-100" x-ref="canvas">
+        </canvas>
+
+        <div x-text="data[selectedIndex] ? data[selectedIndex].value : ''" class="absolute z-10 top-0 text-center w-full">
+                
+        </div>
+
+    </div>
+
+
+    <script>
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('chart', () => ({
+
+                canvas: null,
+                ctx: null,
+                data: [
+                    {label: 'Lego', value: 100, color: 'green', path: null},
+                    {label: 'Planes', value: 200, color: 'red', path: null},
+                    {label: 'Wood Kits', value: 300, color: 'blue', path: null},
+                    {label: 'Models', value: 400, color: 'limegreen', path: null},
+                    {label: 'Soft Toys', value: 500, color: 'orange', path: null},
+                    {label: 'Kites', value: 550, color: 'indigo', path: null},
+                    {label: 'Baloons', value: 700, color: 'goldenrod', path: null},
+                    {label: 'Colouring Pens', value: 800, color: 'hotpink', path: null},
+                    {label: 'Puzzles', value: 745, color: 'skyblue', path: null},
+                ],
+                canvasWidth: 1280,
+                canvasHeight: 720,
+                innerPadding: 30,
+                innerRectX: 0,
+                innerRectY: 0,
+                innerRectWidth: 0,
+                innerRectHeight: 0,
+                gap: 25,
+                barWidth: 50,
+                selectedIndex: null,
+                targetTicks: 7,
+                ticks: [],
+                bars: [],
+
+                init(){
+                    this.canvas = this.$refs.canvas
+                    this.ctx = this.canvas.getContext('2d')
+                    this.setupCanvas()
+                    this.setupData()
+                },
+
+                setupCanvas(){
+
+                    const dpr = window.devicePixelRatio || 1
+
+                    this.canvas.style.width = this.canvasWidth + 'px'
+                    this.canvas.style.height = this.canvasHeight + 'px'
+
+                    this.canvas.width = this.canvasWidth * dpr
+                    this.canvas.height = this.canvasHeight * dpr
+
+                    this.ctx.scale(dpr, dpr)
+
+                    this.innerRectX = 0 + this.innerPadding
+                    this.innerRectY = 0 + this.innerPadding
+                    this.innerRectWidth = this.canvasWidth - (2 * this.innerPadding)
+                    this.innerRectHeight = this.canvasHeight - (2 * this.innerPadding)
+
+                },
+
+                setupData(){
+
+                    let min = 0
+                    let max = Math.max(...this.data.map(item => item.value))
+                    
+                    let rawRange = max - min
+                    let rawStep = rawRange / this.targetTicks
+
+                    let mag = 10 ** Math.floor(Math.log10(rawStep))
+                    let residual = rawStep / mag
+
+                    const cleanStep = this.getCleanStep(residual, mag)
+
+                    let amax = Math.ceil(max / cleanStep) * cleanStep
+
+                    let tmin = this.innerRectY
+                    let tmax = this.innerRectY + this.innerRectHeight
+
+                    console.log(`Amax: ${amax} Max: ${max}`)
+
+                    this.createTicks(tmin, max, tmax, cleanStep)
+
+                    this.createBars(tmin, max, tmin, tmax)
+
+                    this.drawChart()
+                },
+
+                createBars(min, amax, tmin, tmax){
+
+                    let currentX = this.innerRectX;
+
+                    this.data.forEach((bar, index) => {
+
+                        let path = new Path2D()
+                        let yTop = this.scaleValue(0, amax, tmax, tmin, bar.value); // Map 0 to 690, Max to 30
+                        let barHeight = tmax - yTop; // Distance from 690 up to the calculated Y
+                        path.rect(
+                            currentX, 
+                            tmax, 
+                            this.barWidth, 
+                            -barHeight
+                            //-(this.scaleValue(0, amax, tmin, tmax, bar.value) - this.innerPadding)
+                        )
+                    
+                        bar.path = path
+
+                        currentX += this.barWidth + this.gap
+
+                    })
+
+                },
+
+                createTicks(tmin, amax, tmax, cleanStep){
+
+                    const ticks = [];
+                    let current = 0
+
+                    while (current <= amax) {
+                        // toPrecision(12) removes floating point artifacts like 0.3000000000004
+                        ticks.push(Number(current.toPrecision(12)));
+                        current += cleanStep;
+                    }
+
+                    this.scaledTicks = ticks.reverse().map(tick => {
+
+                        let minVal = Math.min(...ticks)
+                        let maxVal = Math.max(...ticks)
+                        let yPosition = 
+                            (this.scaleValue(amax, minVal, tmin, tmax, tick))
+                        
+                            console.log(yPosition)
+
+                        let axisTick = {
+                            value: tick,
+                            yPosition: yPosition,
+                            path: null, 
+                        }
+
+                        let path = new Path2D()
+                        path.moveTo(this.innerRectX, yPosition)
+                        path.lineTo(this.innerRectWidth + this.innerRectX, yPosition)
+                        axisTick.path = path
+                        
+                        return axisTick
+
+                    })
+
+                },
+
+                getCleanStep(residual, magnitude){
+
+                    const thresholds = [
+                        {limit: 1.5, multiplier: 1},
+                        {limit: 3, multiplier: 3},
+                        {limit: 7, multiplier: 5},
+                        {limit: Infinity, multiplier: 10}
+                    ]
+
+                    const { multiplier } = thresholds.find(t => residual < t.limit);
+
+                    return multiplier * magnitude;
+
+                },
+
+                scaleValue(aMin, aMax, tMin, tMax, value){
+
+                    return (value - aMin)/(aMax-aMin)*(tMax-tMin)+tMin
+
+                },
+
+                drawChart(){
+
+                    this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight)
+                    this.scaledTicks.forEach((tick, index) => {
+                        this.ctx.save()
+                        this.ctx.lineWidth = 1
+                        this.ctx.strokeStyle = "silver"
+                        this.ctx.stroke(tick.path)
+                        
+                        this.ctx.fillStyle = 'black'
+                        this.ctx.textBaseline = "middle";
+                        this.ctx.textAlign = 'start'
+                        this.ctx.fillText(tick.value, 5, tick.yPosition);
+                        this.ctx.restore()
+                    })
+
+
+                    //draw the bars
+                    this.data.forEach((bar, index ) => {
+                        this.ctx.save()
+                        if(index === this.selectedIndex){
+                            this.ctx.shadowColor = "silver";
+                            this.ctx.shadowOffsetX = 5;
+                            this.ctx.shadowOffsetY = 5;
+                        }
+                        this.ctx.fillStyle = bar.color
+                        this.ctx.fill(bar.path)
+                        this.ctx.restore()
+                    })
+
+                    this.ctx.save()
+                    //this.ctx.globalAlpha = 0.1;
+                    //this.ctx.fillStyle = 'blue'
+                    this.ctx.strokeRect(this.innerRectX, this.innerRectY, this.innerRectWidth, this.innerRectHeight)
+                    this.ctx.restore()
+
+                },
+
+                handleHover(e){
+                    this.selectedIndex = this.hitDetection(e)
+                    this.drawChart()
+                },
+
+                hitDetection(e){
+
+                    let rect = this.canvas.getBoundingClientRect()
+                    const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+                    const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+                    
+                    let found = null
+                    
+                    this.data.forEach((p, index) => {
+
+                        if(this.ctx.isPointInPath(p.path, mx, my)){
+                            found = index
+                            return
+                        }
+                    })
+
+                    return found
+
+                },
+
+            }))
+
+        })
+
+    </script>
+    
+</body>
+</html>
