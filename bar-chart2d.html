@@ -17,7 +17,7 @@
 
     <div x-data="chart" class="relative max-w-fit">
 
-        <canvas @mousemove="handleHover" class="bg-zinc-100" x-ref="canvas">
+        <canvas @mousemove="handleHover" class="bg-zic-100" x-ref="canvas">
         </canvas>
 
         <div x-text="data[selectedIndex] ? data[selectedIndex].value : ''" class="absolute z-10 top-0 text-center w-full">
@@ -42,8 +42,9 @@
                     {label: 'Soft Toys', value: 500, color: 'orange', path: null},
                     {label: 'Kites', value: 550, color: 'indigo', path: null},
                     {label: 'Baloons', value: 700, color: 'goldenrod', path: null},
-                    {label: 'Colouring Pens', value: 800, color: 'hotpink', path: null},
+                    {label: 'Colouring Pens', value: 902, color: 'hotpink', path: null},
                     {label: 'Puzzles', value: 745, color: 'skyblue', path: null},
+                    {label: 'Brushes', value: 645, color: 'coral', path: null},
                 ],
                 canvasWidth: 1280,
                 canvasHeight: 720,
@@ -53,7 +54,7 @@
                 innerRectWidth: 0,
                 innerRectHeight: 0,
                 gap: 25,
-                barWidth: 50,
+                barWidth: 95,
                 selectedIndex: null,
                 targetTicks: 7,
                 ticks: [],
@@ -94,6 +95,7 @@
                     let rawStep = rawRange / this.targetTicks
 
                     let mag = 10 ** Math.floor(Math.log10(rawStep))
+                    max += mag
                     let residual = rawStep / mag
 
                     const cleanStep = this.getCleanStep(residual, mag)
@@ -104,6 +106,8 @@
                     let tmax = this.innerRectY + this.innerRectHeight
 
                     console.log(`Amax: ${amax} Max: ${max}`)
+
+                    this.barWidth = (this.innerRectWidth - this.gap) / this.data.length - this.gap
 
                     this.createTicks(tmin, max, tmax, cleanStep)
 
@@ -122,7 +126,7 @@
                         let yTop = this.scaleValue(0, amax, tmax, tmin, bar.value); // Map 0 to 690, Max to 30
                         let barHeight = tmax - yTop; // Distance from 690 up to the calculated Y
                         path.rect(
-                            currentX, 
+                            currentX + this.gap, 
                             tmax, 
                             this.barWidth, 
                             -barHeight
@@ -131,6 +135,8 @@
                     
                         bar.path = path
 
+                        bar.x = currentX + this.gap + this.barWidth / 2
+                
                         currentX += this.barWidth + this.gap
 
                     })
@@ -215,6 +221,7 @@
                     //draw the bars
                     this.data.forEach((bar, index ) => {
                         this.ctx.save()
+                        console.log(bar.path)
                         if(index === this.selectedIndex){
                             this.ctx.shadowColor = "silver";
                             this.ctx.shadowOffsetX = 5;
@@ -223,11 +230,20 @@
                         this.ctx.fillStyle = bar.color
                         this.ctx.fill(bar.path)
                         this.ctx.restore()
+
+                        //draw labels
+                        this.ctx.save()
+                        this.ctx.textAlign = 'center'
+                        this.ctx.fillText(bar.label, bar.x, this.canvasHeight - 15)
+                        this.ctx.restore()
+
                     })
 
                     this.ctx.save()
                     //this.ctx.globalAlpha = 0.1;
                     //this.ctx.fillStyle = 'blue'
+                    this.ctx.lineWidth = 2
+                    this.ctx.strokeStyle = 'silver'
                     this.ctx.strokeRect(this.innerRectX, this.innerRectY, this.innerRectWidth, this.innerRectHeight)
                     this.ctx.restore()
 
