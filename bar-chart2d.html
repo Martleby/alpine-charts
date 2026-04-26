@@ -100,12 +100,8 @@
 
                     const cleanStep = this.getCleanStep(residual, mag)
 
-                    let amax = Math.ceil(max / cleanStep) * cleanStep
-
                     let tmin = this.innerRectY
                     let tmax = this.innerRectY + this.innerRectHeight
-
-                    console.log(`Amax: ${amax} Max: ${max}`)
 
                     this.barWidth = (this.innerRectWidth - this.gap) / this.data.length - this.gap
 
@@ -123,14 +119,13 @@
                     this.data.forEach((bar, index) => {
 
                         let path = new Path2D()
-                        let yTop = this.scaleValue(0, amax, tmax, tmin, bar.value); // Map 0 to 690, Max to 30
-                        let barHeight = tmax - yTop; // Distance from 690 up to the calculated Y
+                        let yTop = this.scaleValue(0, amax, tmax, tmin, bar.value); // Map values to innerRect
+                        let barHeight = tmax - yTop; // Distance from bottom of innerRect up to the calculated Y
                         path.rect(
                             currentX + this.gap, 
                             tmax, 
                             this.barWidth, 
                             -barHeight
-                            //-(this.scaleValue(0, amax, tmin, tmax, bar.value) - this.innerPadding)
                         )
                     
                         bar.path = path
@@ -143,12 +138,12 @@
 
                 },
 
-                createTicks(tmin, amax, tmax, cleanStep){
+                createTicks(tmin, max, tmax, cleanStep){
 
                     const ticks = [];
                     let current = 0
 
-                    while (current <= amax) {
+                    while (current <= max) {
                         // toPrecision(12) removes floating point artifacts like 0.3000000000004
                         ticks.push(Number(current.toPrecision(12)));
                         current += cleanStep;
@@ -159,7 +154,7 @@
                         let minVal = Math.min(...ticks)
                         let maxVal = Math.max(...ticks)
                         let yPosition = 
-                            (this.scaleValue(amax, minVal, tmin, tmax, tick))
+                            (this.scaleValue(max, minVal, tmin, tmax, tick))
                         
                             console.log(yPosition)
 
@@ -195,9 +190,9 @@
 
                 },
 
-                scaleValue(aMin, aMax, tMin, tMax, value){
+                scaleValue(min, max, tMin, tMax, value){
 
-                    return (value - aMin)/(aMax-aMin)*(tMax-tMin)+tMin
+                    return (value - min)/(max-min)*(tMax-tMin)+tMin
 
                 },
 
