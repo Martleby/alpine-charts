@@ -149,14 +149,13 @@
                         current += cleanStep;
                     }
 
-                    this.scaledTicks = ticks.reverse().map(tick => {
+                    this.scaledTicks = ticks.map(tick => {
 
                         let minVal = Math.min(...ticks)
                         let maxVal = Math.max(...ticks)
                         let yPosition = 
-                            (this.scaleValue(max, minVal, tmin, tmax, tick))
-                        
-                            console.log(yPosition)
+                            (this.scaleValue(0, max, tmax, tmin, tick))
+                    
 
                         let axisTick = {
                             value: tick,

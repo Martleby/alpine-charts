@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/resize@3.x.x/dist/cdn.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <title>Line Chart 2D</title>
+</head>
+<body>
+
+    <div x-data="chart">
+
+        <canvas x-ref="canvas">
+
+        </canvas>
+
+        <div>
+
+        </div>
+
+
+
+    </div>
+
+
+    
+    <script>
+
+        document.addEventListener('alpine:init', () => {
+
+            Alpine.data('chart', () => ({
+
+                canvas: null,
+                ctx: null,
+                canvasWidth: 1280,
+                canvasHeight: 720,
+                innerRectX: 0,
+                innerRectY: 0,
+                innerRectWidth: 0,
+                innerRectHeight: 0,
+                innerPadding: 30,
+                data: [
+                    60, 10, 60, 10, 70, 10, 60, 20, 60, 80, 70, 65, 96, 48
+
+                ],
+                targetTicks: 10,
+                lines: [],
+                gap: 0,
+
+                init(){
+                    this.canvas = this.$refs.canvas
+                    this.ctx = this.canvas.getContext('2d')
+                    this.setupCanvas()
+                    this.setupData()
+                },
+
+                setupCanvas(){
+
+                    const dpr = window.devicePixelRatio || 1
+
+                    this.canvas.style.width = this.canvasWidth + 'px'
+                    this.canvas.style.height = this.canvasHeight + 'px'
+
+                    this.canvas.width = this.canvasWidth * dpr
+                    this.canvas.height = this.canvasHeight * dpr
+
+                    this.ctx.scale(dpr, dpr)
+
+                    this.innerRectX = 0 + this.innerPadding
+                    this.innerRectY = 0 + this.innerPadding
+                    this.innerRectWidth = this.canvasWidth - (2 * this.innerPadding)
+                    this.innerRectHeight = this.canvasHeight - (2 * this.innerPadding)
+
+                },
+
+                getCleanStep(residual, magnitude){
+
+                    const thresholds = [
+                        {limit: 1.5, multiplier: 1},
+                        {limit: 3, multiplier: 3},
+                        {limit: 7, multiplier: 5},
+                        {limit: Infinity, multiplier: 10}
+                    ]
+
+                    const { multiplier } = thresholds.find(t => residual < t.limit);
+
+                    return multiplier * magnitude;
+
+                },
+
+                scaleValue(min, max, tmin, tmax, value){
+
+                    return (value - min)/(max-min)*(tmax-tmin)+tmin
+
+                },
+
+                setupData(){
+
+                    let min = 0 // Math.min(...this.data)
+                    let max = Math.max(...this.data) + 25
+
+                    let tmin = this.innerRectY
+                    let tmax = this.innerRectY + this.innerRectHeight
+
+                    this.scaledValues = this.data.map((value) => this.scaleValue(min, max, tmax, tmin, value))
+
+                    this.gap = this.innerRectWidth / (this.data.length -1)
+
+                    this.createAxisTicks(min, max, tmin, tmax)
+                    this.createLines(min, max, tmin, tmax)
+
+                    this.drawChart()
+
+                },
+
+                createAxisTicks(min, max, tmin, tmax){
+
+                    let rawRange = max - min
+                    let rawStep = rawRange / this.targetTicks
+                    let mag = 10 ** Math.floor(Math.log10(rawStep))
+                    let residual = rawStep / mag
+
+                    const cleanStep = this.getCleanStep(residual, mag)
+
+                    const ticks = [];
+                    let current = min
+
+                    while (current <= max) {
+                        // toPrecision(12) removes floating point artifacts like 0.3000000000004
+                        ticks.push(Number(current.toPrecision(12)));
+                        current += cleanStep;
+                    }
+
+                    this.scaledTicks = ticks.map(tick => {
+
+                        let minVal = Math.min(...ticks)
+                        let maxVal = Math.max(...ticks)
+                        let yPosition = 
+                            (this.scaleValue(max, minVal, tmin, tmax, tick))
+
+                        let axisTick = {
+                            value: tick,
+                            yPosition: yPosition,
+                            path: null, 
+                        }
+
+                        let path = new Path2D()
+                        path.moveTo(this.innerRectX, yPosition)
+                        path.lineTo(this.innerRectWidth + this.innerRectX, yPosition)
+                        axisTick.path = path
+                        
+                        return axisTick
+                    })
+
+                },
+
+                createLines(min, max, tmin, tmax){
+
+                    let currentX = this.innerRectX
+
+                    let path = new Path2D()
+
+                    this.scaledValues.forEach((value, index) => {
+
+                        index == 0 ? path.moveTo(currentX, value) : path.lineTo(currentX, value)
+                        let rect = new Path2D()
+                        rect.rect(currentX -3, value -3, 6, 6)
+                        path.addPath(rect)
+                        path.moveTo(currentX, value)
+                        currentX += this.gap
+
+                    })
+
+                    this.lines.push(path)
+
+                },
+
+                drawChart(){
+
+                    this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasWidth)
+
+                    console.log(this.scaledTicks)
+                    this.scaledTicks.forEach((tick) => {
+
+                        this.ctx.save()
+                        this.ctx.strokeStyle = "silver"
+                        this.ctx.lineWidth = 1
+                        this.ctx.stroke(tick.path)
+                        this.ctx.restore()
+
+                        this.ctx.save()
+                        this.ctx.fillStyle = 'black'
+                        this.ctx.textBaseline = "middle";
+                        this.ctx.textAlign = 'start'
+                        this.ctx.fillText(tick.value, 5, tick.yPosition)
+                        this.ctx.restore()
+
+                    })
+
+                    console.log(this.lines)
+
+                    this.lines.forEach((line) => {
+                        this.ctx.save()
+                        this.ctx.strokeStyle = 'goldenrod'
+                        this.ctx.fillStyle = 'silver'
+                        this.ctx.lineWidth = 4
+                        this.ctx.stroke(line)
+                        this.ctx.fill(line)
+                        this.ctx.restore()
+                    })
+
+                    this.ctx.save()
+                    this.ctx.strokeStyle = "silver"
+                    this.ctx.lineWidth = 2
+                    this.ctx.strokeRect(this.innerRectX, this.innerRectY, this.innerRectWidth, this.innerRectHeight)
+                    this.ctx.restore()
+
+                }
+
+
+
+            }))
+
+
+        })
+
+
+    </script>
+
+</body>
+</html>
