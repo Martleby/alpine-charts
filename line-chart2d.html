@@ -14,14 +14,15 @@
 </head>
 <body>
 
-    <div x-data="chart">
+    <div x-data="chart" class="relative max-w-fit">
 
-        <canvas x-ref="canvas">
+    
+        <canvas @mousemove="handleHover" x-ref="canvas">
 
         </canvas>
 
-        <div>
-
+        <div x-text="data[selectedIndex] ? data[selectedIndex] : ''" class="absolute z-10 top-0 text-center w-full">
+                
         </div>
 
 
@@ -46,12 +47,15 @@
                 innerRectHeight: 0,
                 innerPadding: 30,
                 data: [
-                    60, 10, 60, 10, 70, 10, 60, 20, 60, 80, 70, 65, 96, 48
+                    60, 40, 60, 30, 70, 10, 60, 130, 20, 60, 80, 70, 65, 96, 48
 
                 ],
                 targetTicks: 10,
                 lines: [],
+                points: [],
+                area: null,
                 gap: 0,
+                selectedIndex: null,
 
                 init(){
                     this.canvas = this.$refs.canvas
@@ -164,20 +168,39 @@
 
                     let currentX = this.innerRectX
 
-                    let path = new Path2D()
+                    let area = new Path2D()
+
+                    area.moveTo(currentX, tmax)
 
                     this.scaledValues.forEach((value, index) => {
+                        area.lineTo(currentX, value)
+                        currentX += this.gap
+                    })
 
-                        index == 0 ? path.moveTo(currentX, value) : path.lineTo(currentX, value)
+                    area.lineTo(currentX - this.gap, tmax)
+                    area.closePath()
+
+                    this.area = area
+
+
+                    let line = new Path2D()
+
+                    currentX = this.innerRectX
+                    this.scaledValues.forEach((value, index) => {
+
+                        index == 0 ? line.moveTo(currentX, value) : line.lineTo(currentX, value)
+                        
+                        //Create point for later use
                         let rect = new Path2D()
-                        rect.rect(currentX -3, value -3, 6, 6)
-                        path.addPath(rect)
-                        path.moveTo(currentX, value)
+                        rect.rect(currentX -5, value -5, 10, 10)
+                        this.points.push(rect)
+
+                        line.moveTo(currentX, value)
                         currentX += this.gap
 
                     })
 
-                    this.lines.push(path)
+                    this.lines.push(line)
 
                 },
 
@@ -185,7 +208,7 @@
 
                     this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasWidth)
 
-                    console.log(this.scaledTicks)
+                    //Draw Axis ticks
                     this.scaledTicks.forEach((tick) => {
 
                         this.ctx.save()
@@ -194,6 +217,7 @@
                         this.ctx.stroke(tick.path)
                         this.ctx.restore()
 
+                        //Draw y-axis labels
                         this.ctx.save()
                         this.ctx.fillStyle = 'black'
                         this.ctx.textBaseline = "middle";
@@ -203,15 +227,29 @@
 
                     })
 
-                    console.log(this.lines)
+                    //Draw the area
+                    this.ctx.save()
+                    let gradient = this.ctx.createLinearGradient(0, this.innerRectY, 0, this.innerRectHeight);
+                    gradient.addColorStop(0, 'goldenrod'); // Blue with 50% opacity
+                    gradient.addColorStop(1, 'rgba(218, 165, 32, 0.25)');   // Fully transparent
+                    this.ctx.fillStyle = gradient
+                    this.ctx.strokeStyle = 'blue'
+                    this.ctx.fill(this.area)
+                    this.ctx.restore()
 
+                    //Draw the lines
                     this.lines.forEach((line) => {
                         this.ctx.save()
                         this.ctx.strokeStyle = 'goldenrod'
-                        this.ctx.fillStyle = 'silver'
                         this.ctx.lineWidth = 4
                         this.ctx.stroke(line)
-                        this.ctx.fill(line)
+                        this.ctx.restore()
+                    })
+
+                    this.points.forEach((point) => {
+                        this.ctx.save()
+                        this.ctx.fillStyle = 'goldenrod'
+                        this.ctx.fill(point)
                         this.ctx.restore()
                     })
 
@@ -221,7 +259,32 @@
                     this.ctx.strokeRect(this.innerRectX, this.innerRectY, this.innerRectWidth, this.innerRectHeight)
                     this.ctx.restore()
 
-                }
+                },
+
+                handleHover(e){
+                    this.selectedIndex = this.hitDetection(e)                    
+                },
+
+                hitDetection(e){
+
+                    let rect = this.canvas.getBoundingClientRect()
+                    const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+                    const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+                    
+                    let found = null
+
+                    
+                    this.points.forEach((p, index) => {
+
+                        if(this.ctx.isPointInPath(p, mx, my)){
+                            found = index
+                            return
+                        }
+                    })
+
+                    return found
+
+                },
 
 
 
